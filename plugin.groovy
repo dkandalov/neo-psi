@@ -35,12 +35,74 @@ doInBackground("Copying PSI to neo4j") { indicator ->
 	runReadAction {
 		using(inserter(pluginPath + "/neo-database")) { BatchInserter inserter ->
 			def key = neo4jKey()
-			PersistPsiHierarchy.persist(project, inserter, key)
-			PersistApiReferences.persist(project, inserter, key)
+			def traversal = new ProjectTraversal(psiFilter())
+			traversal.traverse(project, persistPsiHierarchy(inserter, key))
+			traversal.traverse(project, persistPsiReferences(inserter, key))
 		}
 	}
 	show("Finished copying PSI")
 }
+
+
+static Callback persistPsiReferences(BatchInserter inserter, Key<Long> neo4jKey) {
+	RelationshipType refersTo = DynamicRelationshipType.withName("REFERS_TO")
+
+	new Callback() {
+		@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent) {
+			if (!(psiElement instanceof PsiReference)) return
+			def resolvedElement = psiElement.asType(PsiReference).resolve()
+			if (resolvedElement == null) return
+
+			def elementId = neo4jKey.get(psiElement)
+			def resolvedElementId = neo4jKey.get(resolvedElement)
+
+			if (elementId != null && resolvedElementId != null) {
+
+				inserter.createRelationship(elementId, resolvedElementId, refersTo, map())
+
+			} else {
+				// TODO No neo4j key for element: PsiJavaCodeReferenceElement:org.junit.runner.notification in /Users/dima/IdeaProjects/junit/src/main/java/org/junit/runner/notification/package-info.java
+				// TODO track dependencies outside of project "if (resolvedElementId == null)"
+				if (elementId == null) {
+					def rootParent = psiElement.parent
+					while (rootParent != null && !(rootParent instanceof PsiFile)) rootParent = rootParent.parent
+					log("No neo4j key for element: ${psiElement} in ${rootParent.asType(PsiFile).virtualFile.path}")
+				}
+			}
+		}
+	}
+}
+
+
+static Callback persistPsiHierarchy(BatchInserter inserter, Key<Long> neo4jKey) {
+	RelationshipType childOf = DynamicRelationshipType.withName("CHILD_OF")
+
+	new Callback() {
+		@Override def onProject(Project aProject) {
+			long nodeId = inserter.createNode(map("string", aProject.name), label("Project"))
+			neo4jKey.set(aProject, nodeId)
+		}
+
+		@Override def onSourceRoot(VirtualFile sourceRoot, UserDataHolder parent) {
+			long nodeId = inserter.createNode(map("string", sourceRoot.path), label("SourceRoot"), label(sourceRoot.name))
+			inserter.createRelationship(nodeId, neo4jKey.get(parent), childOf, map())
+			neo4jKey.set(sourceRoot, nodeId)
+		}
+
+		@Override def onVirtualFile(VirtualFile virtualFile, UserDataHolder parent) {
+			long nodeId = inserter.createNode(map("string", virtualFile.name), label(virtualFile.name))
+			inserter.createRelationship(nodeId, neo4jKey.get(parent), childOf, map())
+			neo4jKey.set(virtualFile, nodeId)
+		}
+
+		@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent) {
+			long nodeId = inserter.createNode(map("string", psiElement.toString()), label(psiElement.class.simpleName))
+			inserter.createRelationship(nodeId, neo4jKey.get(parent), childOf, map())
+			neo4jKey.set(psiElement, nodeId)
+		}
+	}
+}
+
 
 class Callback {
 	def onProject(Project project) {}
@@ -50,8 +112,13 @@ class Callback {
 }
 
 class ProjectTraversal {
+	private final Closure acceptPsi
 	private Project project
 	private Callback callback
+
+	ProjectTraversal(Closure acceptPsi = null) {
+		this.acceptPsi = acceptPsi
+	}
 
 	def traverse(Project project, Callback callback) {
 		this.project = project
@@ -79,9 +146,11 @@ class ProjectTraversal {
 	}
 
 	private persistPsiElement(PsiElement element, UserDataHolder parent) {
+		if (acceptPsi != null && !acceptPsi(element)) return
+
 		callback.onPsiElement(element, parent)
 
-		// TODO try reducing db size by filtering whitespaces, brackets, etc
+		// TODO try reducing db size by filtering brackets, etc
 		element.children.each{ persistPsiElement(it, element) }
 	}
 
@@ -92,70 +161,6 @@ class ProjectTraversal {
 		if (psiFile != null) return psiFile
 
 		PsiManager.getInstance(project).findDirectory(file)
-	}
-}
-
-
-class PersistApiReferences {
-	static persist(Project project, BatchInserter inserter, Key<Long> neo4jKey) {
-		RelationshipType refersTo = DynamicRelationshipType.withName("REFERS_TO")
-
-		new ProjectTraversal().traverse(project, new Callback() {
-			@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent) {
-				if (!(psiElement instanceof PsiReference)) return
-				def resolvedElement = psiElement.asType(PsiReference).resolve()
-				if (resolvedElement == null) return
-
-				def elementId = neo4jKey.get(psiElement)
-				def resolvedElementId = neo4jKey.get(resolvedElement)
-
-				if (elementId != null && resolvedElementId != null) {
-
-					inserter.createRelationship(elementId, resolvedElementId, refersTo, map())
-
-				} else {
-					// TODO No neo4j key for element: PsiJavaCodeReferenceElement:org.junit.runner.notification in /Users/dima/IdeaProjects/junit/src/main/java/org/junit/runner/notification/package-info.java
-					// TODO if (resolvedElementId == null)
-					if (elementId == null) {
-						def rootParent = psiElement.parent
-						while (rootParent != null && !(rootParent instanceof PsiFile)) rootParent = rootParent.parent
-						log("No neo4j key for element: ${psiElement} in ${rootParent.asType(PsiFile).virtualFile.path}")
-					}
-				}
-			}
-		})
-	}
-}
-
-
-class PersistPsiHierarchy {
-	static persist(Project project, BatchInserter inserter, Key<Long> neo4jKey) {
-		RelationshipType childOf = DynamicRelationshipType.withName("CHILD_OF")
-
-		new ProjectTraversal().traverse(project, new Callback() {
-			@Override def onProject(Project aProject) {
-				long nodeId = inserter.createNode(map("string", project.name), label("Project"))
-				neo4jKey.set(aProject, nodeId)
-			}
-
-			@Override def onSourceRoot(VirtualFile sourceRoot, UserDataHolder parent) {
-				long nodeId = inserter.createNode(map("string", sourceRoot.path), label("SourceRoot"), label(sourceRoot.name))
-				inserter.createRelationship(nodeId, neo4jKey.get(parent), childOf, map())
-				neo4jKey.set(sourceRoot, nodeId)
-			}
-
-			@Override def onVirtualFile(VirtualFile virtualFile, UserDataHolder parent) {
-				long nodeId = inserter.createNode(map("string", virtualFile.name), label(virtualFile.name))
-				inserter.createRelationship(nodeId, neo4jKey.get(parent), childOf, map())
-				neo4jKey.set(virtualFile, nodeId)
-			}
-
-			@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent) {
-				long nodeId = inserter.createNode(map("string", psiElement.toString()), label(psiElement.class.simpleName))
-				inserter.createRelationship(nodeId, neo4jKey.get(parent), childOf, map())
-				neo4jKey.set(psiElement, nodeId)
-			}
-		})
 	}
 }
 
@@ -187,4 +192,11 @@ static BatchInserter inserter(String pathToDatabase) {
 	Map<String, String> config = stringMap("neostore.nodestore.db.mapped_memory", "90M")
 	DefaultFileSystemAbstraction fileSystem = new DefaultFileSystemAbstraction()
 	BatchInserters.inserter(pathToDatabase, fileSystem, config)
+}
+
+static Closure psiFilter() {
+	return { PsiElement element ->
+		if (element instanceof PsiWhiteSpace) false
+		else true
+	}
 }
