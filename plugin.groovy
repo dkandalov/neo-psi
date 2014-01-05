@@ -6,7 +6,6 @@ import com.intellij.psi.*
 import com.intellij.util.containers.StripedLockIntObjectConcurrentHashMap
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
-import org.neo4j.graphdb.DynamicLabel
 import org.neo4j.graphdb.DynamicRelationshipType
 import org.neo4j.graphdb.RelationshipType
 import org.neo4j.kernel.DefaultFileSystemAbstraction
@@ -14,14 +13,17 @@ import org.neo4j.unsafe.batchinsert.BatchInserter
 import org.neo4j.unsafe.batchinsert.BatchInserters
 
 import static liveplugin.PluginUtil.*
+import static org.neo4j.graphdb.DynamicLabel.label
 import static org.neo4j.helpers.collection.MapUtil.map
 import static org.neo4j.helpers.collection.MapUtil.stringMap
 //
 // Sample neo4j cypher queries:
 // match (class:PsiClassImpl) return count(class)
-// match (file:PsiJavaFile) return count(file)
+// match (file:PsiJavaFileImpl) return count(file)
 // match (project:Project)<-[:CHILD_OF*1..3]-(child) return project,child
-// match (file:PsiJavaFileImpl)<-[:CHILD_OF*1]-(child) where file.string='PsiJavaFile:SimpleTest.java' return file,child
+// match (file:PsiJavaFileImpl)<-[:CHILD_OF*1]-(child) where file.string='PsiJavaFile:JUnitMatchers.java' return file,child
+// match (file)<-[:CHILD_OF*1]-(child) where file.string =~ '*package-info.java' return file,child
+// match (file) where file.string =~ 'PsiDirectory.*extensions' return file
 //
 
 // add-to-classpath $HOME/IdeaProjects/neo4j-tutorial/lib/*.jar
@@ -31,7 +33,7 @@ doInBackground("Copying PSI to neo4j") { indicator ->
 	runReadAction {
 		using(inserter(pluginPath + "/neo-database")) { BatchInserter inserter ->
 			new PersistPsiHierarchy(inserter, neo4jKey()).persist(project)
-//			new PersistApiReferences(inserter, neo4jKey()).persist(project)
+			new PersistApiReferences(inserter, neo4jKey()).persist(project)
 		}
 	}
 	show("Finished copying PSI")
@@ -84,10 +86,16 @@ class PersistApiReferences {
 			def elementId = element.getUserData(neo4jKey)
 			def resolvedElementId = resolvedElement.getUserData(neo4jKey)
 
-			if (elementId == null) log("No neo4j key for element: " + element)
-			if (resolvedElementId == null) log("No neo4j key for resolved: " + resolvedElement)
-
-			inserter.createRelationship(elementId, resolvedElementId, refersTo, map())
+			if (elementId != null && resolvedElementId != null) {
+				inserter.createRelationship(elementId, resolvedElementId, refersTo, map())
+			} else {
+				// TODO if (resolvedElementId == null)
+				if (elementId == null) {
+					def parent = element.parent
+					while (parent != null && !(parent instanceof PsiFile)) parent = parent.parent
+					log("No neo4j key for element: ${element} in ${parent.asType(PsiFile).virtualFile.path}")
+				}
+			}
 		}
 
 		element.children.findAll{ !(it instanceof PsiWhiteSpace) }.each{
@@ -95,6 +103,7 @@ class PersistApiReferences {
 		}
 	}
 }
+
 
 class PersistPsiHierarchy {
 	private final RelationshipType childOf = DynamicRelationshipType.withName("CHILD_OF")
@@ -111,7 +120,7 @@ class PersistPsiHierarchy {
 	def persist(Project project) {
 		this.project = project
 
-		long projectNode = inserter.createNode(map("string", project.name), DynamicLabel.label("Project"))
+		long projectNode = inserter.createNode(map("string", project.name), label("Project"))
 
 		def roots = ProjectRootManager.getInstance(project).contentSourceRoots
 		roots.each { VirtualFile sourceRoot ->
@@ -120,7 +129,7 @@ class PersistPsiHierarchy {
 	}
 
 	private persistSourceRoot(VirtualFile sourceRoot, long projectNode) {
-		long sourceRootNode = inserter.createNode(map("string", sourceRoot.path), DynamicLabel.label("SourceRoot"))
+		long sourceRootNode = inserter.createNode(map("string", sourceRoot.path), label("SourceRoot"), label(sourceRoot.name))
 		inserter.createRelationship(sourceRootNode, projectNode, childOf, map())
 
 		sourceRoot.each { child ->
@@ -129,27 +138,27 @@ class PersistPsiHierarchy {
 	}
 
 	private persistFile(VirtualFile virtualFile, long parentNode) {
-		def psiFile = psiFile(virtualFile, project)
-		if (psiFile == null) {
-			long node = inserter.createNode(map("string", virtualFile.name), DynamicLabel.label(virtualFile.name))
+		def psiItem = psiItem(virtualFile, project)
+		if (psiItem == null) {
+			long node = inserter.createNode(map("string", virtualFile.name), label(virtualFile.name))
 			inserter.createRelationship(node, parentNode, childOf, map())
 
-			virtualFile.children.each{
-				persistFile(it, node)
+			virtualFile.children.each{ child ->
+				persistFile(child, node)
 			}
 		} else {
-			persistPsiElement(psiFile, parentNode)
+			persistPsiElement(psiItem, parentNode)
 		}
 	}
 
 	private persistPsiElement(PsiElement element, long parentNodeId) {
-		long node = inserter.createNode(map("string", element.toString()), DynamicLabel.label(element.class.simpleName))
+		long node = inserter.createNode(map("string", element.toString()), label(element.class.simpleName))
 		inserter.createRelationship(node, parentNodeId, childOf, map())
 
 		element.putUserData(neo4jKey, node)
 
-		element.children.findAll{!(it instanceof PsiWhiteSpace)}.each {
-			persistPsiElement(it, node)
+		element.children.findAll{!(it instanceof PsiWhiteSpace)}.each { child ->
+			persistPsiElement(child, node)
 		}
 	}
 
@@ -161,7 +170,6 @@ class PersistPsiHierarchy {
 
 		PsiManager.getInstance(project).findDirectory(file)
 	}
-
 }
 
 
