@@ -14,6 +14,14 @@ import static liveplugin.PluginUtil.*
 import static org.neo4j.helpers.collection.MapUtil.map
 import static org.neo4j.helpers.collection.MapUtil.stringMap
 
+//
+// Sample neo4j cypher queries:
+// match (class:PsiClassImpl) return count(class)
+// match (file:PsiJavaFile) return count(file)
+// match (project:Project)<-[:CHILD_OF*1..3]-(child) return project,child
+// match (file:PsiJavaFileImpl)<-[:CHILD_OF*1]-(child) where file.string='PsiJavaFile:SimpleTest.java' return file,child
+//
+
 // add-to-classpath $HOME/IdeaProjects/neo4j-tutorial/lib/*.jar
 
 doInBackground("Copying PSI to neo4j") { indicator ->
