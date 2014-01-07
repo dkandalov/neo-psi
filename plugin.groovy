@@ -4,6 +4,7 @@ import com.intellij.openapi.fileTypes.FileTypeManager
 import com.intellij.openapi.fileTypes.LanguageFileType
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.indexing.FileBasedIndex
@@ -31,10 +32,12 @@ import static liveplugin.PluginUtil.*
 doInModalMode("Importing PSI into Neo4j") { ProgressIndicator indicator ->
 	newSingleThreadExecutor().submit({
 		runReadAction{
-			def traversalIndicator = new ProjectTraversalIndicator(indicator, 2 * amountOfFilesIn(project))
+			try {
 
-			catchingAll{
-				using(inserter(pluginPath + "/neo-database")){ BatchInserter inserter ->
+				def traversalIndicator = new ProjectTraversalIndicator(indicator, 2 * amountOfFilesIn(project))
+				def pathToDatabase = pluginPath + "/neo-database"
+
+				using(inserter(pathToDatabase)){ BatchInserter inserter ->
 					def key = new Neo4jKey()
 					def traversal = new ProjectTraversal(traversalIndicator, psiFilter())
 
@@ -42,10 +45,19 @@ doInModalMode("Importing PSI into Neo4j") { ProgressIndicator indicator ->
 					traversalIndicator.expectAsManyFilesAsTraversed()
 					traversal.traverse(project, persistPsiReferences(inserter, key))
 				}
+
+				if (indicator.canceled) {
+					FileUtil.delete(new File(pathToDatabase))
+					show("Canceled copying PSI")
+				} else {
+					show("Finished copying PSI")
+				}
+
+			} catch (Exception e) {
+				showInConsole(e, project)
 			}
 		}
 	}).get()
-	show("Finished copying PSI")
 }
 
 class ProjectTraversalIndicator {
