@@ -13,6 +13,12 @@ import org.neo4j.kernel.DefaultFileSystemAbstraction
 import org.neo4j.unsafe.batchinsert.BatchInserter
 import org.neo4j.unsafe.batchinsert.BatchInserters
 
+import static com.intellij.psi.JavaTokenType.COMMA
+import static com.intellij.psi.JavaTokenType.LBRACE
+import static com.intellij.psi.JavaTokenType.LPARENTH
+import static com.intellij.psi.JavaTokenType.RBRACE
+import static com.intellij.psi.JavaTokenType.RPARENTH
+import static com.intellij.psi.JavaTokenType.SEMICOLON
 import static java.util.concurrent.Executors.newSingleThreadExecutor
 import static liveplugin.PluginUtil.*
 import static org.neo4j.graphdb.DynamicLabel.label
@@ -24,20 +30,19 @@ import static org.neo4j.helpers.collection.MapUtil.stringMap
 // match (file:PsiJavaFileImpl) return count(file)
 // match (project:Project)<-[:CHILD_OF*1..3]-(child) return project,child
 // match (file:PsiJavaFileImpl)<-[:CHILD_OF*1]-(child) where file.string='PsiJavaFile:JUnitMatchers.java' return file,child
-// match (file)<-[:CHILD_OF*1]-(child) where file.string =~ '*package-info.java' return file,child
 // match (file) where file.string =~ 'PsiDirectory.*extensions' return file
 //
 
 // Expected results for JUnit:
-// - 335139: match (n) return count(n)
-// - 334487: match ()<-[r:CHILD_OF]-() return count(r)
-// - 39225: match ()<-[r:REFERS_TO]-() return count(r)
+// - 283199: match (n) return count(n)
+// - 282547: match ()<-[r:CHILD_OF]-() return count(r)
+// - 39231: match ()<-[r:REFERS_TO]-() return count(r)
 
 // add-to-classpath $HOME/IdeaProjects/neo4j-tutorial/lib/*.jar
 
 
 // TODO make this task modal
-doInBackground("Copying PSI to neo4j") { indicator ->
+doInBackground("Importing PSI into neo4j") { indicator ->
 	newSingleThreadExecutor().submit({
 		runReadAction{
 			catchingAll{
@@ -58,7 +63,7 @@ static Callback persistPsiReferences(BatchInserter inserter, Neo4jKey neo4jKey) 
 	RelationshipType refersTo = DynamicRelationshipType.withName("REFERS_TO")
 
 	new Callback() {
-		@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent) {
+		@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent, int index) {
 			if (!(psiElement instanceof PsiReference)) return
 			def resolvedElement = psiElement.asType(PsiReference).resolve()
 			if (resolvedElement == null) return
@@ -66,7 +71,8 @@ static Callback persistPsiReferences(BatchInserter inserter, Neo4jKey neo4jKey) 
 			def elementId = neo4jKey.getId(psiElement)
 			def resolvedElementId = neo4jKey.getId(resolvedElement)
 
-			if (resolvedElementId == null) {
+			def elementIsOutsideProject = (resolvedElementId == null)
+			if (elementIsOutsideProject) {
 				resolvedElementId = inserter.createNode(map("string", resolvedElement.toString()), label(resolvedElement.class.simpleName))
 				neo4jKey.setId(resolvedElement, resolvedElementId)
 			}
@@ -103,17 +109,17 @@ static Callback persistPsiHierarchy(BatchInserter inserter, Neo4jKey neo4jKey) {
 			neo4jKey.setId(sourceRoot, nodeId)
 		}
 
-		@Override def onVirtualFile(VirtualFile virtualFile, UserDataHolder parent) {
-			long nodeId = inserter.createNode(map("string", virtualFile.name), label(virtualFile.name))
+		@Override def onVirtualFile(VirtualFile virtualFile, UserDataHolder parent, int index) {
+			long nodeId = inserter.createNode(map("string", virtualFile.name, "index", index), label(virtualFile.name))
 			inserter.createRelationship(nodeId, neo4jKey.getId(parent), childOf, map())
 			neo4jKey.setId(virtualFile, nodeId)
 		}
 
-		@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent) {
+		@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent, int index) {
 			if (psiElement instanceof PsiReference) psiElement.resolve()
 
 			long nodeId = inserter.createNode(map("string", psiElement.toString()), label(psiElement.class.simpleName))
-			inserter.createRelationship(nodeId, neo4jKey.getId(parent), childOf, map())
+			inserter.createRelationship(nodeId, neo4jKey.getId(parent), childOf, map("index", index))
 			neo4jKey.setId(psiElement, nodeId)
 		}
 	}
@@ -149,8 +155,8 @@ class Neo4jKey {
 class Callback {
 	def onProject(Project project) {}
 	def onSourceRoot(VirtualFile sourceRoot, UserDataHolder parent) {}
-	def onVirtualFile(VirtualFile virtualFile, UserDataHolder parent) {}
-	def onPsiElement(PsiElement psiElement, UserDataHolder parent) {}
+	def onVirtualFile(VirtualFile virtualFile, UserDataHolder parent, int index) {}
+	def onPsiElement(PsiElement psiElement, UserDataHolder parent, int index) {}
 }
 
 class ProjectTraversal {
@@ -178,29 +184,28 @@ class ProjectTraversal {
 		if (indicator.canceled) return
 
 		callback.onSourceRoot(sourceRoot, parent)
-		sourceRoot.children.each{ persistFile(it, sourceRoot) }
+		sourceRoot.children.eachWithIndex{ child, childIndex -> persistFile(child, sourceRoot, childIndex) }
 	}
 
-	private persistFile(VirtualFile virtualFile, UserDataHolder parent) {
+	private persistFile(VirtualFile virtualFile, UserDataHolder parent, int index) {
 		if (indicator.canceled) return
 
 		def psiItem = psiItem(virtualFile, project)
 		if (psiItem == null) {
-			callback.onVirtualFile(virtualFile, parent)
-			virtualFile.children.each{ persistFile(it, virtualFile) }
+			callback.onVirtualFile(virtualFile, parent, index)
+			virtualFile.eachWithIndex{ child, childIndex -> persistFile(child, virtualFile, childIndex) }
 		} else {
-			persistPsiElement(psiItem, parent)
+			persistPsiElement(psiItem, parent, index)
 		}
 	}
 
-	private persistPsiElement(PsiElement element, UserDataHolder parent) {
+	private persistPsiElement(PsiElement element, UserDataHolder parent, int index) {
 		if (indicator.canceled) return
 		if (acceptPsi != null && !acceptPsi(element)) return
 
-		callback.onPsiElement(element, parent)
+		callback.onPsiElement(element, parent, index)
 
-		// TODO try reducing db size by filtering brackets, etc
-		element.children.each{ persistPsiElement(it, element) }
+		element.children.eachWithIndex{ child, childIndex -> persistPsiElement(child, element, childIndex) }
 	}
 
 	@Nullable private static PsiFileSystemItem psiItem(@Nullable VirtualFile file, @NotNull Project project) {
@@ -231,6 +236,10 @@ static BatchInserter inserter(String pathToDatabase) {
 static Closure psiFilter() {
 	return { PsiElement element ->
 		if (element instanceof PsiWhiteSpace) false
+		else if (element instanceof PsiJavaToken &&
+				(element.tokenType == LBRACE || element.tokenType == RBRACE ||
+				 element.tokenType == LPARENTH || element.tokenType == RPARENTH ||
+				 element.tokenType == SEMICOLON || element.tokenType == COMMA)) false
 		else true
 	}
 }
