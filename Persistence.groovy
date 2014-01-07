@@ -86,7 +86,6 @@ class Persistence {
 		}
 	}
 
-
 	static Closure psiFilter() {
 		return { PsiElement element ->
 			if (element instanceof PsiWhiteSpace) false
@@ -97,7 +96,6 @@ class Persistence {
 			else true
 		}
 	}
-
 
 	static using(BatchInserter inserter, Closure closure) {
 		try {

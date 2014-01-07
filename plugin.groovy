@@ -1,9 +1,17 @@
-import org.neo4j.unsafe.batchinsert.BatchInserter
 import ProjectTraversal
+import com.intellij.openapi.fileTypes.FileType
+import com.intellij.openapi.fileTypes.FileTypeManager
+import com.intellij.openapi.fileTypes.LanguageFileType
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.project.Project
+import com.intellij.psi.search.FileTypeIndex
+import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.util.indexing.FileBasedIndex
+import org.neo4j.unsafe.batchinsert.BatchInserter
 
+import static Persistence.*
 import static java.util.concurrent.Executors.newSingleThreadExecutor
 import static liveplugin.PluginUtil.*
-import static Persistence.*
 //
 // Sample neo4j cypher queries:
 // match (class:PsiClassImpl) return count(class)
@@ -20,15 +28,18 @@ import static Persistence.*
 
 // add-to-classpath $HOME/IdeaProjects/neo4j-tutorial/lib/*.jar
 
-doInModalMode("Importing PSI into Neo4j") { indicator ->
+doInModalMode("Importing PSI into Neo4j") { ProgressIndicator indicator ->
 	newSingleThreadExecutor().submit({
 		runReadAction{
+			def traversalIndicator = new ProjectTraversalIndicator(indicator, 2 * amountOfFilesIn(project))
+
 			catchingAll{
 				using(inserter(pluginPath + "/neo-database")){ BatchInserter inserter ->
-					// TODO estimate progress
 					def key = new Neo4jKey()
-					def traversal = new ProjectTraversal(indicator, psiFilter())
+					def traversal = new ProjectTraversal(traversalIndicator, psiFilter())
+
 					traversal.traverse(project, persistPsiHierarchy(inserter, key))
+					traversalIndicator.expectAsManyFilesAsTraversed()
 					traversal.traverse(project, persistPsiReferences(inserter, key))
 				}
 			}
@@ -37,3 +48,39 @@ doInModalMode("Importing PSI into Neo4j") { indicator ->
 	show("Finished copying PSI")
 }
 
+class ProjectTraversalIndicator {
+	private final indicator
+	private int expectedFiles
+	private int amountOfFiles
+
+	ProjectTraversalIndicator(indicator, int expectedFiles) {
+		this.indicator = indicator
+		this.expectedFiles = expectedFiles
+
+		indicator.fraction = 0.0
+	}
+
+	def expectAsManyFilesAsTraversed() {
+		expectedFiles = amountOfFiles * 2
+	}
+
+	boolean isCanceled() {
+		indicator.canceled
+	}
+
+	def onFileTraversed() {
+		amountOfFiles++
+		def fraction = amountOfFiles / expectedFiles
+		indicator.fraction = (fraction > 1.0 ? 1.0 : fraction)
+	}
+}
+
+static int amountOfFilesIn(Project project) {
+	def scope = GlobalSearchScope.projectScope(project)
+	int result = 0
+	def fileTypes = FileTypeManager.instance.registeredFileTypes.findAll{it instanceof LanguageFileType}
+	for (FileType fileType : fileTypes) {
+		result += FileBasedIndex.instance.getContainingFiles(FileTypeIndex.NAME, fileType, scope).size()
+	}
+	result
+}

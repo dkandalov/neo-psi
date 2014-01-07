@@ -3,6 +3,7 @@ import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.util.UserDataHolder
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiFileSystemItem
 import com.intellij.psi.PsiManager
 import org.jetbrains.annotations.NotNull
@@ -37,6 +38,7 @@ class ProjectTraversal {
 	}
 
 	private persistFile(VirtualFile virtualFile, UserDataHolder parent, int index) {
+		indicator.onFileTraversed()
 		if (indicator.canceled) return
 
 		def psiItem = psiItem(virtualFile, project)
@@ -49,6 +51,7 @@ class ProjectTraversal {
 	}
 
 	private persistPsiElement(PsiElement element, UserDataHolder parent, int index) {
+		if (element instanceof PsiFile && !element.directory) indicator.onFileTraversed()
 		if (indicator.canceled) return
 		if (acceptPsi != null && !acceptPsi(element)) return
 
