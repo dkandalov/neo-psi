@@ -10,7 +10,7 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.indexing.FileBasedIndex
 import org.neo4j.unsafe.batchinsert.BatchInserter
 
-import static Persistence.*
+import static Neo4jPersistence.*
 import static java.util.concurrent.Executors.newSingleThreadExecutor
 import static liveplugin.PluginUtil.*
 //

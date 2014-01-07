@@ -13,14 +13,14 @@ class ProjectTraversal {
 	private final Closure acceptPsi
 	private final def indicator
 	private Project project
-	private Callback callback
+	private TraversalListener callback
 
 	ProjectTraversal(indicator, Closure acceptPsi = null) {
 		this.indicator = indicator
 		this.acceptPsi = acceptPsi
 	}
 
-	def traverse(Project project, Callback callback) {
+	def traverse(Project project, TraversalListener callback) {
 		this.project = project
 		this.callback = callback
 

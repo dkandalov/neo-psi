@@ -10,12 +10,12 @@ import liveplugin.PluginUtil
 import org.junit.Test
 import org.neo4j.unsafe.batchinsert.BatchInserter
 
-import static Persistence.*
+import static Neo4jPersistence.*
 // add-to-classpath $HOME/IdeaProjects/neo4j-tutorial/lib/*.jar
 
-IntegrationTestsRunner.runIntegrationTests([ATest], project, pluginPath)
+IntegrationTestsRunner.runIntegrationTests([Neo4jPersistenceTest], project, pluginPath)
 
-class ATest {
+class Neo4jPersistenceTest {
 
 	@Test void "import PSI into Neo4j"() {
 		def javaFile = asJavaPsi("Sample.java", """
@@ -41,7 +41,7 @@ class ATest {
 		}
 	}
 
-	private static traverse(PsiElement element, Callback callback, UserDataHolder parent = null, int index = -1) {
+	private static traverse(PsiElement element, TraversalListener callback, UserDataHolder parent = null, int index = -1) {
 		parent = (parent != null ? parent : element)
 		callback.onPsiElement(element, parent, index)
 		element.children.eachWithIndex{ child, i -> traverse(child, callback, element, i) }
@@ -52,7 +52,7 @@ class ATest {
 		fileFactory.createFileFromText(fileName, JavaFileType.INSTANCE, javaCode) as PsiJavaFile
 	}
 
-	ATest(Map context) {
+	Neo4jPersistenceTest(Map context) {
 		this.project = context.project
 		this.pluginPath = context.pluginPath
 		PluginUtil.show(pluginPath)

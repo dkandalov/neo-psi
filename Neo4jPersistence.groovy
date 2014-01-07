@@ -15,12 +15,12 @@ import static org.neo4j.graphdb.DynamicLabel.label
 import static org.neo4j.helpers.collection.MapUtil.map
 import static org.neo4j.helpers.collection.MapUtil.stringMap
 
-class Persistence {
+class Neo4jPersistence {
 
-	static Callback persistPsiReferences(BatchInserter inserter, Neo4jKey neo4jKey) {
+	static TraversalListener persistPsiReferences(BatchInserter inserter, Neo4jKey neo4jKey) {
 		RelationshipType refersTo = DynamicRelationshipType.withName("REFERS_TO")
 
-		new Callback() {
+		new TraversalListener() {
 			@Override def onPsiElement(PsiElement psiElement, UserDataHolder parent, int index) {
 				if (!(psiElement instanceof PsiReference)) return
 				def resolvedElement = psiElement.asType(PsiReference).resolve()
@@ -55,10 +55,10 @@ class Persistence {
 		}
 	}
 
-	static Callback persistPsiHierarchy(BatchInserter inserter, Neo4jKey neo4jKey) {
+	static TraversalListener persistPsiHierarchy(BatchInserter inserter, Neo4jKey neo4jKey) {
 		RelationshipType childOf = DynamicRelationshipType.withName("CHILD_OF")
 
-		new Callback() {
+		new TraversalListener() {
 			@Override def onProject(Project aProject) {
 				long nodeId = inserter.createNode(map("string", aProject.name), label("Project"))
 				neo4jKey.setId(aProject, nodeId)

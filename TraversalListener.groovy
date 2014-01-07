@@ -3,7 +3,7 @@ import com.intellij.openapi.util.UserDataHolder
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 
-class Callback {
+class TraversalListener {
 	def onProject(Project project) {}
 	def onSourceRoot(VirtualFile sourceRoot, UserDataHolder parent) {}
 	def onVirtualFile(VirtualFile virtualFile, UserDataHolder parent, int index) {}
