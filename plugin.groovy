@@ -35,9 +35,9 @@ doInModalMode("Importing PSI into Neo4j") { ProgressIndicator indicator ->
 			try {
 
 				def traversalIndicator = new ProjectTraversalIndicator(indicator, 2 * amountOfFilesIn(project))
-				def pathToDatabase = pluginPath + "/neo-database"
+				def databasePath = pluginPath + "/neo-database"
 
-				using(inserter(pathToDatabase)){ BatchInserter inserter ->
+				using(inserter(databasePath)){ BatchInserter inserter ->
 					def key = new Neo4jKey()
 					def traversal = new ProjectTraversal(traversalIndicator, psiFilter())
 
@@ -47,7 +47,7 @@ doInModalMode("Importing PSI into Neo4j") { ProgressIndicator indicator ->
 				}
 
 				if (indicator.canceled) {
-					FileUtil.delete(new File(pathToDatabase))
+					FileUtil.delete(new File(databasePath))
 					show("Canceled copying PSI")
 				} else {
 					show("Finished copying PSI")
