@@ -20,7 +20,7 @@ IntegrationTestsRunner.runIntegrationTests([Neo4jPersistenceTest], project, plug
 class Neo4jPersistenceTest {
 
 	@Test void "import PSI into Neo4j"() {
-		def javaFile = asJavaPsi("Sample.java", """
+		def javaFile = asJavaPsi("A.java", """
 			class A {
 				A(B b) {}
 
@@ -45,7 +45,7 @@ class Neo4jPersistenceTest {
 			def childRelations = engine.execute("match ()<-[r:CHILD_OF]-() return count(r)").javaColumnAs("count(r)").next()
 			def referenceRelations = engine.execute("match ()<-[r:REFERS_TO]-() return count(r)").javaColumnAs("count(r)").next()
 
-			assert amountOfNodes == 70
+			assert amountOfNodes == 71
 			assert childRelations == 69
 			assert referenceRelations == 2
 
