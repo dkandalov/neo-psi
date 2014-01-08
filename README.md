@@ -23,7 +23,7 @@ It was interesting to try if Neo4j is easy to use for querying syntax graphs. E.
 
 There is always root node with "Project" label.
 It has child "SourceRoot" nodes which represent folders like "src/main/java", "src/test/java".
-Under SourceRoots is hierarchical folder, file, PSI elements structure.
+Under SourceRoots there is hierarchy of folders, files and PSI elements.
 
 Child elements are connected to parents with directional "CHILD_OF" relationship.
 Each "CHILD_OF" relationship has "index" property which can be used to determine child order
@@ -50,6 +50,11 @@ match (project:Project)<-[:CHILD_OF*1..3]-(child) return project,child
 match (class:PsiClassImpl)<-[:CHILD_OF*1]-(child)
 where class.string='PsiClass:JUnitMatchers'
 return class,child
+
+// All references to anything in Assume.java (totally inefficient query):
+match (file:PsiJavaFileImpl)<-[:CHILD_OF*]-(element)<-[:REFERS_TO]-(refElement)-[:CHILD_OF*]->(refFile:PsiJavaFileImpl)
+where file.string='PsiJavaFile:Assume.java'
+return distinct refFile
 ```
 
 ### JUnit sample database
