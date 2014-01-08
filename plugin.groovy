@@ -7,14 +7,6 @@ import static Neo4jPersistence.*
 import static ProjectTraversalIndicator.amountOfFilesIn
 import static java.util.concurrent.Executors.newSingleThreadExecutor
 import static liveplugin.PluginUtil.*
-//
-// Sample neo4j cypher queries:
-// match (class:PsiClassImpl) return count(class)
-// match (file:PsiJavaFileImpl) return count(file)
-// match (project:Project)<-[:CHILD_OF*1..3]-(child) return project,child
-// match (file:PsiJavaFileImpl)<-[:CHILD_OF*1]-(child) where file.string='PsiJavaFile:JUnitMatchers.java' return file,child
-// match (file) where file.string =~ 'PsiDirectory.*extensions' return file
-//
 
 // Expected results for JUnit:
 // - 283199: match (n) return count(n)
