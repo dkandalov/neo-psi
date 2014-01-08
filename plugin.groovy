@@ -23,15 +23,18 @@ import static liveplugin.PluginUtil.*
 
 // add-to-classpath $HOME/IdeaProjects/neo4j-tutorial/lib/*.jar
 
+if (isIdeStartup) return
+
+
 doInModalMode("Importing PSI into Neo4j") { ProgressIndicator indicator ->
 	newSingleThreadExecutor().submit({
 		runReadAction{
 			try {
 
-				def traversalIndicator = new ProjectTraversalIndicator(indicator, 2 * amountOfFilesIn(project))
 				def databasePath = pluginPath + "/neo-database"
 
 				using(inserter(databasePath)){ BatchInserter inserter ->
+					def traversalIndicator = new ProjectTraversalIndicator(indicator, 2 * amountOfFilesIn(project))
 					def key = new Neo4jKey()
 					def traversal = new ProjectTraversal(traversalIndicator, psiFilter())
 
@@ -42,9 +45,9 @@ doInModalMode("Importing PSI into Neo4j") { ProgressIndicator indicator ->
 
 				if (indicator.canceled) {
 					FileUtil.delete(new File(databasePath))
-					show("Canceled copying PSI")
+					show("Canceled importing PSI to ${databasePath}")
 				} else {
-					show("Finished copying PSI")
+					show("Finished importing PSI to ${databasePath}")
 				}
 
 			} catch (Exception e) {
