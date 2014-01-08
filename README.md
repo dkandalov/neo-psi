@@ -1,5 +1,3 @@
-<img src="https://raw.github.com/dkandalov/live-plugin/master/toolwindow.png" alt="toolwindow" title="toolwindow" align="right" />
-
 ### What is this?
 
 This is experimental work-in-progress [IntelliJ](https://github.com/JetBrains/intellij-community) plugin for importing
@@ -49,7 +47,9 @@ match (file:PsiJavaFileImpl) return count(file)
 match (project:Project)<-[:CHILD_OF*1..3]-(child) return project,child
 
 // "JUnitMatchers" class node and it's immediate children
-match (class:PsiClassImpl)<-[:CHILD_OF*1]-(child) where class.string='PsiClass:JUnitMatchers' return class,child
+match (class:PsiClassImpl)<-[:CHILD_OF*1]-(child)
+where class.string='PsiClass:JUnitMatchers'
+return class,child
 ```
 
 ### JUnit sample database
