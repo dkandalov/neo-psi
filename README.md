@@ -65,6 +65,12 @@ by downloading it from [google drive](https://googledrive.com/host/0B5PfR1lF8o5S
 and pointing your local Neo4j to it (tested it with Neo4j 2.0.0-M06).
 
 
+### Running this plugin
+ - install [liveplugin](https://github.com/dkandalov/live-plugin)
+ - add this project in toolwindow as plugin from git
+ - in plugin folder run "gradle dependencies" to fetch neo4j dependencies
+
+
 ### Similar tools
 See [WiggleIndexer](https://github.com/raoulDoc/WiggleIndexer)
 and ["Source-Code Queries with Graph Databases" paper](http://www.cl.cam.ac.uk/~am21/pk-urma-mycroft-scp.pdf)
