@@ -8,12 +8,15 @@ import static ProjectTraversalIndicator.amountOfFilesIn
 import static java.util.concurrent.Executors.newSingleThreadExecutor
 import static liveplugin.PluginUtil.*
 
+// add-to-classpath $HOME/IdeaProjects/neo4j-tutorial/lib/*.jar
+
+// Please note that this plugin will only work in IntelliJ running under java 1.7
+// (this is because neo4j 2.0 libs are compiled for java 7)
+
 // Expected results for JUnit:
 // - 283199: match (n) return count(n)
 // - 282547: match ()<-[r:CHILD_OF]-() return count(r)
 // - 39231: match ()<-[r:REFERS_TO]-() return count(r)
-
-// add-to-classpath $HOME/IdeaProjects/neo4j-tutorial/lib/*.jar
 
 if (isIdeStartup) return
 

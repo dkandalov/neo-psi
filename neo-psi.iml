@@ -9,17 +9,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module-library" scope="PROVIDED">
-      <library name="LivePlugin">
-        <CLASSES>
-          <root url="jar://$PLUGINS_PATH$/LivePlugin/lib/LivePlugin.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES>
-          <root url="jar://$PLUGINS_PATH$/LivePlugin/lib/LivePlugin.jar!/src" />
-        </SOURCES>
-      </library>
-    </orderEntry>
-    <orderEntry type="module-library" scope="PROVIDED">
       <library name="IDEA jars">
         <ANNOTATIONS>
           <root url="jar://$APPLICATION_HOME_DIR$/lib/jdkAnnotations.jar!/" />
@@ -121,6 +110,17 @@
         <JAVADOC />
         <SOURCES />
         <jarDirectory url="file://$MODULE_DIR$/lib" recursive="false" />
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" scope="PROVIDED">
+      <library name="LivePlugin">
+        <CLASSES>
+          <root url="jar://$PLUGINS_PATH$/LivePlugin/lib/LivePlugin.jar!/" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES>
+          <root url="jar://$PLUGINS_PATH$/LivePlugin/lib/LivePlugin.jar!/src" />
+        </SOURCES>
       </library>
     </orderEntry>
   </component>

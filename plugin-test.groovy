@@ -5,7 +5,7 @@ import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiJavaFile
-import liveplugin.IntegrationTestsRunner
+import liveplugin.testrunner.IntegrationTestsRunner
 import org.junit.Test
 import org.neo4j.cypher.ExecutionEngine
 import org.neo4j.graphdb.factory.GraphDatabaseFactory

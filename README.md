@@ -7,7 +7,8 @@ tree from IntelliJ into [Neo4j 2.0 database](http://www.neo4j.org/).
 
 It was only tried on Java projects but should work with any language IntelliJ understands.
 
-(Note that this plugin can only be run using [liveplugin](https://github.com/dkandalov/live-plugin).)
+(Note that this plugin can only be run using [liveplugin](https://github.com/dkandalov/live-plugin)
+in IntelliJ running under Java 7.)
 
 
 ### Why?
@@ -65,7 +66,9 @@ and pointing your local Neo4j to it (tested it with Neo4j 2.0.0-M06).
 
 
 ### Similar tools
-See [WiggleIndexer](https://github.com/raoulDoc/WiggleIndexer) by [@raoulUK](https://twitter.com/raoulUK).
+See [WiggleIndexer](https://github.com/raoulDoc/WiggleIndexer)
+and ["Source-Code Queries with Graph Databases" paper](http://www.cl.cam.ac.uk/~am21/pk-urma-mycroft-scp.pdf)
+by [@raoulUK](https://twitter.com/raoulUK).
 
 
 
