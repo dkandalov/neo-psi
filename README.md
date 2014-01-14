@@ -10,6 +10,10 @@ It was only tried on Java projects but should work with any language IntelliJ un
 (Note that this plugin can only be run using [liveplugin](https://github.com/dkandalov/live-plugin)
 in IntelliJ running under Java 7.)
 
+You can try already imported PSI tree for [JUnit project](https://github.com/junit-team/junit)
+by downloading it from [google drive](https://googledrive.com/host/0B5PfR1lF8o5STFZyVi1zSVVhemM/)
+and pointing your local Neo4j to it (tested it with Neo4j 2.0.0-M06).
+
 
 ### Why?
 
@@ -57,13 +61,6 @@ match (file:PsiJavaFileImpl)<-[:CHILD_OF*]-(element)<-[:REFERS_TO]-(refElement)-
 where file.string='PsiJavaFile:Assume.java'
 return distinct refFile
 ```
-
-### JUnit sample database
-
-You can try already imported PSI tree for [JUnit project](https://github.com/junit-team/junit)
-by downloading it from [google drive](https://googledrive.com/host/0B5PfR1lF8o5STFZyVi1zSVVhemM/)
-and pointing your local Neo4j to it (tested it with Neo4j 2.0.0-M06).
-
 
 ### Running this plugin
  - install [liveplugin](https://github.com/dkandalov/live-plugin)
