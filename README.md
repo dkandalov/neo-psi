@@ -68,7 +68,8 @@ and pointing your local Neo4j to it (tested it with Neo4j 2.0.0-M06).
 ### Running this plugin
  - install [liveplugin](https://github.com/dkandalov/live-plugin)
  - add this project in toolwindow as plugin from git
- - in plugin folder run "gradle dependencies" to fetch neo4j dependencies
+ - in plugin folder run "gradle dependencies" to fetch neo4j dependencies in "lib" folder
+ - after "// add-to-classpath" in plugin.groovy replace path with path to "lib" folder (this is limitation of LivePlugin at the moment)
 
 
 ### Similar tools
